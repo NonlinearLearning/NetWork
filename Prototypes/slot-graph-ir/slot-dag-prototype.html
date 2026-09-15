@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slot-DAG Protocol Prototype</title>
+  <style>
+    :root {
+      --ink: #1e293b;
+      --muted: #64748b;
+      --line: #dbe4ee;
+      --panel: #ffffff;
+      --wash: #f4f7fb;
+      --accent: #176b87;
+      --accent-soft: #e5f3f7;
+      --green: #16734a;
+      --green-soft: #e8f7ee;
+      --amber: #9a5b00;
+      --amber-soft: #fff4d6;
+      --red: #a33a42;
+      --red-soft: #fff0f1;
+      --shadow: 0 12px 30px rgba(29, 56, 82, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eef3f7;
+      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .shell { max-width: 1500px; margin: 0 auto; padding: 28px; }
+    header { display: flex; justify-content: space-between; gap: 22px; align-items: flex-start; margin-bottom: 22px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(26px, 4vw, 42px); line-height: 1.1; margin-bottom: 10px; letter-spacing: -.03em; }
+    h2 { font-size: 22px; margin-bottom: 8px; }
+    h3 { font-size: 16px; margin-bottom: 8px; }
+    .lede { max-width: 900px; color: #475569; font-size: 16px; }
+    .badge { display: inline-flex; align-items: center; border: 1px solid #b6dbe4; border-radius: 999px; padding: 5px 10px; color: var(--accent); background: var(--accent-soft); font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .notice { border-left: 4px solid var(--amber); background: var(--amber-soft); padding: 12px 15px; color: #684306; margin: 16px 0 22px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    button, select, input { font: inherit; }
+    button { border: 1px solid #b7c9d8; border-radius: 8px; padding: 8px 12px; color: #163044; background: #fff; cursor: pointer; transition: background .12s, border-color .12s, transform .12s; }
+    button:hover { border-color: var(--accent); background: #f2fbfd; }
+    button:active { transform: translateY(1px); }
+    button.primary { color: #fff; border-color: var(--accent); background: var(--accent); }
+    button.active { color: #fff; border-color: var(--accent); background: var(--accent); }
+    button.danger { color: var(--red); border-color: #e6b4b8; background: var(--red-soft); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .grid { display: grid; grid-template-columns: minmax(350px, .9fr) minmax(460px, 1.4fr); gap: 16px; align-items: start; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); }
+    .card + .card { margin-top: 16px; }
+    .section-title { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 9px; margin-bottom: 13px; }
+    .small { color: var(--muted); font-size: 13px; }
+    .mono, code, pre, .bytes { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    code { background: #eef4f7; border-radius: 4px; padding: 1px 4px; color: #20465c; }
+    pre { margin: 0; padding: 13px; overflow: auto; color: #d7e8ee; background: #162632; border-radius: 9px; font-size: 12px; line-height: 1.55; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; vertical-align: top; border-bottom: 1px solid #e8eef2; padding: 8px 6px; }
+    th { color: var(--muted); font-weight: 650; }
+    .pill { display: inline-block; border-radius: 999px; padding: 2px 7px; font-size: 11px; font-weight: 700; }
+    .pill.fixed { color: #335b78; background: #e8f1f8; }
+    .pill.conditional { color: #805000; background: #fff0c2; }
+    .pill.group { color: #6a3f8c; background: #f0e7fa; }
+    .pill.scope { color: #176b4f; background: #e7f6ed; }
+    .state-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .toggle { display: flex; gap: 8px; align-items: center; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfe; cursor: pointer; }
+    .toggle:hover { border-color: #9fc6d2; }
+    .toggle input { accent-color: var(--accent); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    .status { border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+    .status.ok { color: var(--green); background: var(--green-soft); }
+    .status.error { color: var(--red); background: var(--red-soft); }
+    .status.info { color: #315a72; background: #eaf4f8; }
+    .two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .metric-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .metric { border: 1px solid var(--line); border-radius: 9px; padding: 9px; background: #fbfdfe; }
+    .metric b { display: block; font-size: 20px; color: var(--accent); }
+    .metric span { display: block; color: var(--muted); font-size: 12px; }
+    .wire-row { display: grid; grid-template-columns: 34px 1.2fr 1fr 70px 90px; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid #edf1f4; font-size: 13px; }
+    .wire-row.absent { color: #9aa8b3; background: #fafbfc; }
+    .wire-row .num { color: var(--muted); }
+    .bar { height: 7px; border-radius: 99px; background: #e5edf1; overflow: hidden; }
+    .bar i { display: block; height: 100%; background: var(--accent); }
+    .bytes { word-break: break-all; color: #38586c; font-size: 12px; }
+    .field-list { display: grid; gap: 3px; }
+    .field-line { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dashed #e2eaf0; padding: 5px 0; }
+    .field-line span:last-child { color: var(--muted); text-align: right; }
+    .callout { padding: 11px 13px; border: 1px solid #bcd6df; border-radius: 9px; background: #f2fafc; color: #31576c; }
+    .scenario { border: 1px solid var(--line); border-radius: 9px; padding: 11px; margin-top: 9px; }
+    .scenario strong { display: block; margin-bottom: 4px; }
+    .scenario button { margin-top: 8px; }
+    .tile-row { display: grid; grid-template-columns: 42px 1fr 1fr 1fr; gap: 8px; align-items: center; border-bottom: 1px solid #e7eef2; padding: 8px 0; }
+    .tile-row label { font-weight: 700; }
+    .tile-row input { width: 100%; padding: 6px; border: 1px solid #c8d6df; border-radius: 6px; }
+    .tile-row input[type="checkbox"] { width: auto; }
+    .graph-edge { display: grid; grid-template-columns: 1fr 22px 1fr; gap: 5px; align-items: center; padding: 5px 0; font-size: 13px; }
+    .graph-edge .arrow { text-align: center; color: var(--accent); }
+    .footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 950px) { .grid, .two-up { grid-template-columns: 1fr; } header { display: block; } .metric-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .shell { padding: 14px; } .state-grid { grid-template-columns: 1fr; } .wire-row { grid-template-columns: 24px 1fr 70px; } .wire-row .dep, .wire-row .type { display: none; } .tile-row { grid-template-columns: 32px 1fr 1fr; } .tile-row .liquid-cell { grid-column: 2 / -1; } }
+  </style>
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div>
+      <span class="badge">THROWAWAY LOGIC PROTOTYPE · test4</span>
+      <h1>Slot-DAG 协议编译器</h1>
+      <p class="lede">这个原型只回答一个问题：字段不再持有 DAG，而由可扩展的插槽持有依赖关系，能否编译成可读的线性写入计划和读取计划，同时保留旧协议的线序、条件字段和重复作用域？</p>
+    </div>
+    <div class="callout" style="max-width:330px"><strong>先看这条原则</strong><br>依赖图决定“谁必须先准备好”；<br><b>WireSequence</b> 决定“字节按什么顺序出现”。<br>两者不能混为一个拓扑序。</div>
+  </header>
+
+  <div class="notice"><b>原型边界：</b>这里的 Packet 13、Packet 20 和 Packet 10 是计划生成的概念验证。Packet 10 只模拟 Transform、RLE 状态和 side table 的布局，不实现 Terraria 正式 Deflate/RLE codec；本页没有测试代码，也不会改动生产协议。</div>
+
+  <nav class="tabs" aria-label="packet demos">
+    <button class="tab-button active" data-tab="p13">最小 Packet 13</button>
+    <button class="tab-button" data-tab="p20">复杂 Packet 20</button>
+    <button class="tab-button" data-tab="p10">Packet 10-like</button>
+    <button class="tab-button" data-tab="model">模型检查</button>
+  </nav>
+
+  <section id="p13" class="tab-panel active">
+    <div class="grid">
+      <div>
+        <div class="card">
+          <div class="section-title"><h2>Packet 13 实例输入</h2><span class="small">上层 resolver 的结果</span></div>
+          <p class="small">固定字段总是存在。下面的开关只改变条件 slot 的存在性；内部 mask 不会作为新字段写入 payload。打开“Potion of Return”时，两个位置必须成组出现。</p>
+          <div class="state-grid" id="p13-controls"></div>
+          <div class="toolbar">
+            <button class="primary" id="p13-compile">编译 EncodePlan / DecodePlan</button>
+            <button id="p13-invalid">制造半组字段冲突</button>
+            <button id="p13-reset">重置</button>
+          </div>
+          <div id="p13-status"></div>
+          <div class="field-list" id="p13-mask"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><h2>Slot DAG</h2><span class="small">关系在 slot 上</span></div>
+          <div id="p13-graph"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><h2>引导场景</h2><span class="small">按顺序点击</span></div>
+          <div class="scenario"><strong>场景 A · 固定字段 + Velocity</strong><span class="small">打开 Velocity，观察它出现在 wire plan，而内部 mask 没有额外占用字节。</span><br><button data-scenario="p13-velocity">运行场景</button></div>
+          <div class="scenario"><strong>场景 B · PresenceGroup</strong><span class="small">打开 Potion 组，观察两个位置一起加入；再用冲突按钮观察计划拒绝半组。</span><br><button data-scenario="p13-group">运行场景</button></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="section-title"><h2>编译输出</h2><span class="small">线性布局记录</span></div>
+          <div class="metric-row" id="p13-metrics"></div>
+          <h3>WireLayoutRecord</h3>
+          <div class="wire-row" style="font-weight:700;color:#64748b"><span>#</span><span>字段 / slot</span><span class="dep">依赖</span><span>actual</span><span>范围</span></div>
+          <div id="p13-layout"></div>
+          <h3 style="margin-top:16px">字节流（演示）</h3>
+          <div class="bytes" id="p13-bytes"></div>
+          <h3 style="margin-top:16px">DecodePlan</h3>
+          <pre id="p13-decode"></pre>
+        </div>
+        <div class="card">
+          <div class="section-title"><h2>下层 PacketSchema</h2><span class="small">字段没有关系图</span></div>
+          <pre id="p13-schema"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="p20" class="tab-panel">
+    <div class="grid">
+      <div>
+        <div class="card">
+          <div class="section-title"><h2>Packet 20 · TileScope</h2><span class="small">每个重复项自己的 local mask</span></div>
+          <p class="small">下面三个 Tile 共享同一个 slot template，但每个实例有自己的局部状态。改变 Tile 0 的颜色或 Tile 1 的液体，不会污染相邻 scope。</p>
+          <div id="tile-inputs"></div>
+          <div class="toolbar"><button class="primary" id="p20-compile">编译 TileGrid 计划</button><button id="p20-reset">重置</button></div>
+          <div id="p20-status"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><h2>局部 ScopeMask</h2><span class="small">不是一个全包 flat mask</span></div>
+          <div id="p20-masks"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="section-title"><h2>重复模板编译输出</h2><span class="small">WireOrder 在每个 scope 内复用</span></div>
+          <div class="metric-row" id="p20-metrics"></div>
+          <div class="wire-row" style="font-weight:700;color:#64748b"><span>#</span><span>scope / slot</span><span class="dep">presence</span><span>actual</span><span>范围</span></div>
+          <div id="p20-layout"></div>
+          <h3 style="margin-top:16px">字节流（演示）</h3>
+          <div class="bytes" id="p20-bytes"></div>
+          <h3 style="margin-top:16px">读取边界</h3>
+          <pre id="p20-decode"></pre>
+        </div>
+        <div class="card">
+          <div class="section-title"><h2>复杂条件摘要</h2><span class="small">TileTemplate 的关系</span></div>
+          <div id="p20-graph"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="p10" class="tab-panel">
+    <div class="grid">
+      <div>
+        <div class="card">
+          <div class="section-title"><h2>Packet 10-like 输入</h2><span class="small">Transform + stateful loop + side tables</span></div>
+          <p class="small">这里只模拟压缩 tile block 的计划输入：连续相同 tile 合并成 run，改变 tile 值会切断 run；尾表独立于正文。点击编译查看状态如何进入计划，而不是成为普通 field edge。</p>
+          <div class="field-line"><span>区域尺寸</span><span><code>width=4 · height=1</code></span></div>
+          <div class="field-line"><span>扫描顺序</span><span><code>y outer → x inner</code></span></div>
+          <div class="field-line"><span>当前 tile 序列</span><span><code id="p10-seq-label"></code></span></div>
+          <div class="toolbar" id="p10-seq-buttons"></div>
+          <div class="two-up">
+            <label class="toggle"><input type="checkbox" id="p10-chest" checked> Chest side table（1 条）</label>
+            <label class="toggle"><input type="checkbox" id="p10-sign"> Sign side table（1 条）</label>
+          </div>
+          <div class="toolbar"><button class="primary" id="p10-compile">编译 StatefulLoop 计划</button><button id="p10-reset">重置</button></div>
+          <div id="p10-status"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><h2>关系与状态</h2><span class="small">静态 slot graph + 动态 loop state</span></div>
+          <div id="p10-graph"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="section-title"><h2>Packet 10-like 编译输出</h2><span class="small">不是正式 Terraria wire codec</span></div>
+          <div class="metric-row" id="p10-metrics"></div>
+          <div class="wire-row" style="font-weight:700;color:#64748b"><span>#</span><span>scope / slot</span><span class="dep">状态</span><span>actual</span><span>范围</span></div>
+          <div id="p10-layout"></div>
+          <h3 style="margin-top:16px">伪字节流</h3>
+          <div class="bytes" id="p10-bytes"></div>
+          <h3 style="margin-top:16px">读取器状态推进</h3>
+          <pre id="p10-decode"></pre>
+        </div>
+        <div class="card">
+          <div class="section-title"><h2>为什么不能只用普通字段节点</h2></div>
+          <div class="field-list">
+            <div class="field-line"><span>Transform</span><span>界定压缩子流，不是普通值字段</span></div>
+            <div class="field-line"><span>previousTile</span><span>实例级状态，驱动下一个 run</span></div>
+            <div class="field-line"><span>pendingRun</span><span>循环状态，不能挂到静态字段上</span></div>
+            <div class="field-line"><span>SideTable</span><span>正文之后的独立作用域</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="model" class="tab-panel">
+    <div class="grid">
+      <div>
+        <div class="card">
+          <div class="section-title"><h2>模型分层</h2><span class="small">两个来源，三个运行态</span></div>
+          <pre>Lower PacketSchema
+  packet id / fields / wire type / declared wire order
+
+Upper SlotGraph
+  slot / kind / dependency / presence / shape / scope
+
+Compiler IR
+  validated DAG + explicit WireSequence + scope templates
+
+Runtime
+  Snapshot -> PresencePlan -> LayoutRecords -> byte[]
+  byte[] -> FixedReader -> wire flags -> DecodePlan -> values</pre>
+        </div>
+        <div class="card">
+          <div class="section-title"><h2>代数数据类型式 SlotValue</h2></div>
+          <pre>SlotValue
+  = U8(byte)
+  | U16(ushort)
+  | I32(int)
+  | F32(float)
+  | Vec2(x, y)
+  | Bits8(byte)
+  | Bytes(byte[])
+  | Struct(SlotValue[])
+  | Sequence(SlotValue[])
+  | Variant(tag, SlotValue)
+  | Absent</pre>
+          <p class="small" style="margin-top:10px">建议只让编译器 IR 和 codec seam 使用 SlotValue；领域 DTO 仍然可以保持强类型，避免把业务对象变成反射字典。</p>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="section-title"><h2>静态检查规则</h2><span class="small">编译期应该拒绝</span></div>
+          <div class="field-list">
+            <div class="field-line"><span>1</span><span>slot id 重复或依赖目标不存在</span></div>
+            <div class="field-line"><span>2</span><span>dependency 子图成环</span></div>
+            <div class="field-line"><span>3</span><span>Conditional 没有稳定 presence slot</span></div>
+            <div class="field-line"><span>4</span><span>gate 在 wire order 之后才被读取</span></div>
+            <div class="field-line"><span>5</span><span>PresenceGroup 只出现部分成员</span></div>
+            <div class="field-line"><span>6</span><span>重复 scope 没有 local mask</span></div>
+            <div class="field-line"><span>7</span><span>MaxBytes 小于最小编码长度</span></div>
+            <div class="field-line"><span>8</span><span>loop 没有 count / sentinel / max bound</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title"><h2>兼容 PacketFramework 的 seam</h2></div>
+          <pre>PacketDefinitionRegistry
+  -> PresenceAwareCodecAdapter
+      -> PacketSnapshot / Context
+      -> Compiled EncodePlan / DecodePlan
+      -> existing PacketCodec result
+
+Existing framework keeps:
+  message-id registration
+  MessageFrame / NetMessage
+  codec entry and error propagation
+
+New upper framework owns:
+  SlotGraph / PresencePlan / layout records
+  field encoder and reader plan</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">原型文件：<code>test4/slot-dag-prototype.html</code> · 研究说明：<code>test4/slot-dag-feasibility.md</code> · 仅用于设计验证，不应直接放入生产构建。</div>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // The logic below is intentionally DOM-free. The page only renders its output.
+  // It is the part that could later be lifted into a compiler/IR implementation.
+  const P13_SCHEMA = [
+    ["PlayerId", "u8", 1], ["ControlFlags1", "bits8", 1], ["ControlFlags2", "bits8", 1],
+    ["ControlFlags3", "bits8", 1], ["ControlFlags4", "bits8", 1], ["SelectedItem", "u8", 1],
+    ["Position", "vec2<f32>", 8], ["Velocity", "vec2<f32>", 8], ["MountType", "u16", 2],
+    ["PotionOriginalUsePosition", "vec2<f32>", 8], ["PotionHomePosition", "vec2<f32>", 8], ["NetCameraTarget", "vec2<f32>", 8]
+  ];
+  const P13_SLOTS = [
+    { id: "PlayerId", field: "PlayerId", kind: "Fixed", max: 1, deps: [] },
+    { id: "ControlFlags1", field: "ControlFlags1", kind: "Fixed", max: 1, deps: [] },
+    { id: "ControlFlags2", field: "ControlFlags2", kind: "Fixed", max: 1, deps: [] },
+    { id: "ControlFlags3", field: "ControlFlags3", kind: "Fixed", max: 1, deps: [] },
+    { id: "ControlFlags4", field: "ControlFlags4", kind: "Fixed", max: 1, deps: [] },
+    { id: "SelectedItem", field: "SelectedItem", kind: "Fixed", max: 1, deps: [] },
+    { id: "Position", field: "Position", kind: "Fixed", max: 8, deps: [] },
+    { id: "Velocity", field: "Velocity", kind: "Conditional", max: 8, deps: ["ControlFlags2"], gate: "ControlFlags2.bit2" },
+    { id: "MountType", field: "MountType", kind: "Conditional", max: 2, deps: ["ControlFlags2"], gate: "ControlFlags2.bit7" },
+    { id: "PotionGroup", field: "PotionOriginalUsePosition + PotionHomePosition", kind: "PresenceGroup", max: 16, deps: ["ControlFlags3"], gate: "ControlFlags3.bit6" },
+    { id: "PotionOriginalUsePosition", field: "PotionOriginalUsePosition", kind: "Conditional", max: 8, deps: ["PotionGroup"], gate: "PotionGroup" },
+    { id: "PotionHomePosition", field: "PotionHomePosition", kind: "Conditional", max: 8, deps: ["PotionGroup"], gate: "PotionGroup" },
+    { id: "NetCameraTarget", field: "NetCameraTarget", kind: "Conditional", max: 8, deps: ["ControlFlags4"], gate: "ControlFlags4.bit5" }
+  ];
+  const P13_WIRE = ["PlayerId", "ControlFlags1", "ControlFlags2", "ControlFlags3", "ControlFlags4", "SelectedItem", "Position", "Velocity", "MountType", "PotionOriginalUsePosition", "PotionHomePosition", "NetCameraTarget"];
+
+  const state13 = () => ({ velocity: false, mount: false, potion: false, camera: false, invalidGroup: false });
+  let p13 = state13();
+
+  function topo(slots) {
+    const ids = new Set(slots.map(x => x.id));
+    const incoming = new Map(slots.map(x => [x.id, 0]));
+    const next = new Map(slots.map(x => [x.id, []]));
+    for (const slot of slots) for (const dep of slot.deps) {
+      if (!ids.has(dep)) throw new Error(`slot ${slot.id} 的依赖 ${dep} 不存在`);
+      incoming.set(slot.id, incoming.get(slot.id) + 1);
+      next.get(dep).push(slot.id);
+    }
+    const queue = slots.filter(x => incoming.get(x.id) === 0).map(x => x.id);
+    const result = [];
+    while (queue.length) {
+      const id = queue.shift(); result.push(id);
+      for (const target of next.get(id)) { incoming.set(target, incoming.get(target) - 1); if (!incoming.get(target)) queue.push(target); }
+    }
+    if (result.length !== slots.length) throw new Error("slot dependency graph contains a cycle");
+    return result;
+  }
+
+  function hexBytes(length, seed) {
+    const bytes = [];
+    for (let i = 0; i < length; i++) bytes.push(((seed * 31 + i * 17 + length) & 255).toString(16).padStart(2, "0"));
+    return bytes;
+  }
+
+  function record(id, scope, order, max, present, seed) {
+    const actual = present ? max : 0;
+    return { id, scope, order, max, actual, present, start: 0, end: 0, bytes: present ? hexBytes(actual, seed) : [] };
+  }
+
+  function finalize(records) {
+    let offset = 0;
+    for (const r of records) { r.start = offset; r.end = offset + r.actual; offset = r.end; }
+    return { records, length: offset, bytes: records.flatMap(r => r.bytes) };
+  }
+
+  function compile13(input) {
+    if (input.invalidGroup) throw new Error("PresenceGroup PotionOfReturn 只允许整体出现或整体缺失，当前输入是半组状态。");
+    const flags2 = (input.velocity ? 4 : 0) | (input.mount ? 128 : 0);
+    const flags3 = input.potion ? 64 : 0;
+    const flags4 = input.camera ? 32 : 0;
+    const present = {
+      PlayerId: true, ControlFlags1: true, ControlFlags2: true, ControlFlags3: true, ControlFlags4: true,
+      SelectedItem: true, Position: true, Velocity: input.velocity, MountType: input.mount,
+      PotionOriginalUsePosition: input.potion, PotionHomePosition: input.potion, NetCameraTarget: input.camera
+    };
+    const byId = new Map(P13_SLOTS.map(x => [x.id, x]));
+    const values = { ControlFlags2: flags2, ControlFlags3: flags3, ControlFlags4: flags4 };
+    const rows = P13_WIRE.map((id, i) => { const slot = byId.get(id); return record(id, "Packet13", i, slot.max, present[id], i + 1); });
+    const output = finalize(rows);
+    output.flags = { ControlFlags2: flags2, ControlFlags3: flags3, ControlFlags4: flags4 };
+    output.values = values;
+    output.topo = topo(P13_SLOTS);
+    output.decode = rows.filter(r => r.present).map(r => `read ${r.id.padEnd(28)} @ [${r.start}, ${r.end})`).join("\n");
+    return output;
+  }
+
+  function compileTileGrid(tiles) {
+    const rows = [], masks = [], decode = [];
+    let order = 0;
+    tiles.forEach((tile, index) => {
+      const scope = `Tile[${index}]`;
+      const active = tile.active;
+      const mask = {
+        Flags1: true, Flags2: true, Flags3: true, Color: active && tile.color,
+        WallColor: tile.wall && tile.wallColor, Type: active, Wall: tile.wall, Liquid: tile.liquid, LiquidType: tile.liquid
+      };
+      masks.push({ scope, mask });
+      const fields = [
+        ["Flags1", 1, true], ["Flags2", 1, true], ["Flags3", 1, true], ["Color", 1, mask.Color],
+        ["WallColor", 1, mask.WallColor], ["Type", 2, mask.Type], ["Wall", 2, mask.Wall], ["Liquid", 1, mask.Liquid], ["LiquidType", 1, mask.LiquidType]
+      ];
+      fields.forEach(([id, max, isPresent]) => { rows.push(record(`${scope}.${id}`, scope, order++, max, isPresent, index + id.length)); });
+      decode.push(`${scope}: read fixed flags -> local mask -> read ${fields.filter(x => x[2]).map(x => x[0]).join(", ")}`);
+    });
+    const output = finalize(rows);
+    output.masks = masks; output.decode = decode.join("\n"); output.scopeCount = tiles.length;
+    return output;
+  }
+
+  function compile10(sequence, chest, sign) {
+    const rows = [record("DeflateTransform.header", "Transform", 0, 10, true, 4)];
+    const runs = [];
+    let cursor = 0;
+    while (cursor < sequence.length) {
+      let end = cursor + 1;
+      while (end < sequence.length && sequence[end] === sequence[cursor]) end++;
+      const run = { tile: sequence[cursor], count: end - cursor, start: cursor };
+      runs.push(run);
+      rows.push(record(`TileRun[${runs.length - 1}].Flags`, `TileRun[${runs.length - 1}]`, rows.length, 3, true, 20 + cursor));
+      rows.push(record(`TileRun[${runs.length - 1}].Payload`, `TileRun[${runs.length - 1}]`, rows.length, 4, true, 30 + cursor));
+      rows.push(record(`TileRun[${runs.length - 1}].RunLength`, `TileRun[${runs.length - 1}]`, rows.length, 1, run.count > 1, 40 + cursor));
+      cursor = end;
+    }
+    rows.push(record("ChestSideTable", "Tail", rows.length, 1 + (chest ? 6 : 0), true, 90));
+    rows.push(record("SignSideTable", "Tail", rows.length, 1 + (sign ? 6 : 0), true, 100));
+    const output = finalize(rows);
+    output.runs = runs; output.decode = ["enter DeflateTransform", "read region header", ...runs.map((r, i) => `run ${i}: previousTile=${r.tile}, count=${r.count} -> ${r.count > 1 ? "read RunLength" : "no RunLength"}`), `read ChestSideTable (${chest ? 1 : 0} record)`, `read SignSideTable (${sign ? 1 : 0} record)`].join("\n");
+    return output;
+  }
+
+  const kindClass = kind => kind.toLowerCase().replace("presencegroup", "group");
+  function renderEdges(container, slots) {
+    container.innerHTML = slots.flatMap(slot => slot.deps.length ? slot.deps.map(dep => `<div class="graph-edge"><code>${esc(dep)}</code><span class="arrow">→</span><code>${esc(slot.id)}</code></div>`) : []).join("") || `<div class="small">当前没有依赖边；这不是线序，线序另见右侧计划。</div>`;
+  }
+  function renderMetrics(container, output, extra = []) {
+    container.innerHTML = [[output.records.length, "计划记录"], [output.records.filter(x => x.present).length, "实际出现"], [output.length, "实际字节"], ...extra].map(([value, label]) => `<div class="metric"><b>${esc(value)}</b><span>${esc(label)}</span></div>`).join("");
+  }
+  function renderLayout(container, output, showDeps = false) {
+    container.innerHTML = output.records.map((r, i) => `<div class="wire-row ${r.present ? "" : "absent"}"><span class="num">${i}</span><span><b>${esc(r.id)}</b><br><span class="small">${esc(r.scope)}</span></span><span class="dep">${showDeps ? "slot dependency" : (r.present ? "present" : "absent")}</span><span>${r.actual}/${r.max}</span><span><code>[${r.start}, ${r.end})</code></span></div>`).join("");
+  }
+  function renderBytes(container, output) {
+    container.textContent = output.bytes.length ? output.bytes.join(" ") : "（空）";
+  }
+  function esc(value) { return String(value).replace(/[&<>"']/g, x => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;"}[x])); }
+  function status(id, message, type = "ok") { document.getElementById(id).innerHTML = `<div class="status ${type}">${esc(message)}</div>`; }
+
+  function renderP13Controls() {
+    const labels = [["velocity", "ControlFlags2.bit2 → Velocity"], ["mount", "ControlFlags2.bit7 → MountType"], ["potion", "ControlFlags3.bit6 → Potion group"], ["camera", "ControlFlags4.bit5 → NetCameraTarget"]];
+    document.getElementById("p13-controls").innerHTML = labels.map(([id, label]) => `<label class="toggle"><input type="checkbox" data-p13="${id}" ${p13[id] ? "checked" : ""}> ${label}</label>`).join("");
+    document.querySelectorAll("[data-p13]").forEach(input => input.addEventListener("change", () => { p13[input.dataset.p13] = input.checked; compileAndRender13(); }));
+  }
+  function renderP13Mask(output) {
+    const items = ["Velocity", "MountType", "PotionOriginalUsePosition", "PotionHomePosition", "NetCameraTarget"];
+    document.getElementById("p13-mask").innerHTML = `<div class="small" style="margin-bottom:6px">PresencePlan（内部，不写入 wire）</div>` + items.map(id => `<div class="field-line"><code>${id}</code><span>${output.records.find(x => x.id === id).present ? "true" : "false"}</span></div>`).join("") + `<div class="field-line"><code>Wire flags</code><span>F2=0x${output.flags.ControlFlags2.toString(16).padStart(2, "0")} · F3=0x${output.flags.ControlFlags3.toString(16).padStart(2, "0")} · F4=0x${output.flags.ControlFlags4.toString(16).padStart(2, "0")}</span></div>`;
+  }
+  function compileAndRender13() {
+    try {
+      const output = compile13(p13);
+      status("p13-status", "编译成功：PresencePlan 已投影为旧协议 flags，内部 mask 没有新增 wire 字节。", "ok");
+      renderP13Mask(output); renderMetrics(document.getElementById("p13-metrics"), output); renderLayout(document.getElementById("p13-layout"), output); renderBytes(document.getElementById("p13-bytes"), output);
+      document.getElementById("p13-decode").textContent = output.decode;
+    } catch (error) {
+      status("p13-status", error.message, "error");
+      document.getElementById("p13-layout").innerHTML = ""; document.getElementById("p13-bytes").textContent = "（计划未生成）"; document.getElementById("p13-decode").textContent = "";
+    }
+  }
+  function setupP13() {
+    document.getElementById("p13-schema").textContent = "packet Packet13 {\n" + P13_SCHEMA.map(([n, t]) => `  field ${n}: ${t};`).join("\n") + "\n}";
+    renderEdges(document.getElementById("p13-graph"), P13_SLOTS); renderP13Controls(); compileAndRender13();
+    document.getElementById("p13-compile").addEventListener("click", compileAndRender13);
+    document.getElementById("p13-invalid").addEventListener("click", () => { p13.invalidGroup = true; p13.potion = true; renderP13Controls(); compileAndRender13(); });
+    document.getElementById("p13-reset").addEventListener("click", () => { p13 = state13(); renderP13Controls(); compileAndRender13(); });
+    document.querySelectorAll("[data-scenario]").forEach(button => button.addEventListener("click", () => {
+      p13 = state13(); if (button.dataset.scenario === "p13-velocity") p13.velocity = true; if (button.dataset.scenario === "p13-group") p13.potion = true; renderP13Controls(); compileAndRender13();
+    }));
+  }
+
+  let tiles = [{ active: true, color: true, wall: false, wallColor: false, liquid: false }, { active: true, color: false, wall: true, wallColor: true, liquid: true }, { active: false, color: false, wall: false, wallColor: false, liquid: false }];
+  function renderTileInputs() {
+    document.getElementById("tile-inputs").innerHTML = `<div class="tile-row small"><span>scope</span><span>active / color</span><span>wall / wallColor</span><span class="liquid-cell">liquid</span></div>` + tiles.map((tile, i) => `<div class="tile-row"><label>Tile[${i}]</label><span><label class="toggle"><input type="checkbox" data-tile="${i}:active" ${tile.active ? "checked" : ""}> active</label><label class="toggle"><input type="checkbox" data-tile="${i}:color" ${tile.color ? "checked" : ""}> color</label></span><span><label class="toggle"><input type="checkbox" data-tile="${i}:wall" ${tile.wall ? "checked" : ""}> wall</label><label class="toggle"><input type="checkbox" data-tile="${i}:wallColor" ${tile.wallColor ? "checked" : ""}> wallColor</label></span><span class="liquid-cell"><label class="toggle"><input type="checkbox" data-tile="${i}:liquid" ${tile.liquid ? "checked" : ""}> liquid + liquidType</label></span></div>`).join("");
+    document.querySelectorAll("[data-tile]").forEach(input => input.addEventListener("change", () => { const [index, key] = input.dataset.tile.split(":"); tiles[Number(index)][key] = input.checked; compileAndRender20(); }));
+  }
+  function compileAndRender20() {
+    const output = compileTileGrid(tiles);
+    status("p20-status", "编译成功：每个 TileScope 都生成自己的 local mask，布局 offset 使用 ActualBytes。", "ok");
+    renderTileInputs(); renderMetrics(document.getElementById("p20-metrics"), output, [[output.scopeCount, "local scopes"]]); renderLayout(document.getElementById("p20-layout"), output); renderBytes(document.getElementById("p20-bytes"), output); document.getElementById("p20-decode").textContent = output.decode;
+    document.getElementById("p20-masks").innerHTML = output.masks.map(x => `<div class="field-line"><code>${x.scope}</code><span>${Object.entries(x.mask).filter(([, v]) => v).map(([k]) => k).join(" · ")}</span></div>`).join("");
+  }
+  function setupP20() {
+    renderEdges(document.getElementById("p20-graph"), [
+      { id: "Flags1", deps: [] }, { id: "Flags2", deps: [] }, { id: "Active", deps: ["Flags1"] }, { id: "Color", deps: ["Active", "Flags2"] }, { id: "Wall", deps: ["Flags1"] }, { id: "WallColor", deps: ["Wall", "Flags2"] }, { id: "Liquid", deps: ["Flags1", "ServerContext"] }
+    ]);
+    renderTileInputs(); compileAndRender20(); document.getElementById("p20-compile").addEventListener("click", compileAndRender20); document.getElementById("p20-reset").addEventListener("click", () => { tiles = [{ active: true, color: true, wall: false, wallColor: false, liquid: false }, { active: true, color: false, wall: true, wallColor: true, liquid: true }, { active: false, color: false, wall: false, wallColor: false, liquid: false }]; compileAndRender20(); });
+  }
+
+  let sequence = ["A", "A", "A", "B"];
+  function render10Sequence() {
+    document.getElementById("p10-seq-label").textContent = sequence.join(" · ");
+    document.getElementById("p10-seq-buttons").innerHTML = sequence.map((value, i) => `<button class="${value === "A" ? "active" : ""}" data-seq-index="${i}">x${i} = ${value}（切换）</button>`).join("");
+    document.querySelectorAll("[data-seq-index]").forEach(button => button.addEventListener("click", () => { const i = Number(button.dataset.seqIndex); sequence[i] = sequence[i] === "A" ? "B" : "A"; render10Sequence(); compileAndRender10(); }));
+  }
+  function compileAndRender10() {
+    const output = compile10(sequence, document.getElementById("p10-chest").checked, document.getElementById("p10-sign").checked);
+    status("p10-status", "计划成功：RLE 状态被编译为 StatefulLoop，side table 是尾随作用域；这不是正式压缩字节。", "info");
+    render10Sequence(); renderMetrics(document.getElementById("p10-metrics"), output, [[output.runs.length, "RLE runs"]]); renderLayout(document.getElementById("p10-layout"), output); renderBytes(document.getElementById("p10-bytes"), output); document.getElementById("p10-decode").textContent = output.decode;
+  }
+  function setupP10() {
+    renderEdges(document.getElementById("p10-graph"), [
+      { id: "DeflateTransform", deps: [] }, { id: "TileLoop", deps: ["DeflateTransform"] }, { id: "previousTile", deps: ["TileLoop"] }, { id: "pendingRun", deps: ["previousTile"] }, { id: "ChestSideTable", deps: ["TileLoop"] }, { id: "SignSideTable", deps: ["TileLoop"] }
+    ]);
+    render10Sequence(); compileAndRender10(); document.getElementById("p10-compile").addEventListener("click", compileAndRender10); document.getElementById("p10-reset").addEventListener("click", () => { sequence = ["A", "A", "A", "B"]; document.getElementById("p10-chest").checked = true; document.getElementById("p10-sign").checked = false; compileAndRender10(); }); document.getElementById("p10-chest").addEventListener("change", compileAndRender10); document.getElementById("p10-sign").addEventListener("change", compileAndRender10);
+  }
+
+  document.querySelectorAll(".tab-button").forEach(button => button.addEventListener("click", () => { document.querySelectorAll(".tab-button").forEach(x => x.classList.remove("active")); document.querySelectorAll(".tab-panel").forEach(x => x.classList.remove("active")); button.classList.add("active"); document.getElementById(button.dataset.tab).classList.add("active"); }));
+  setupP13(); setupP20(); setupP10();
+})();
+</script>
+</body>
+</html>

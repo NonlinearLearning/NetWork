@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>NetWork.Prototype.TypedSpanSourceGen.Smoke</AssemblyName>
+    <RootNamespace>Terraria.NetWork.Prototype.TypedSpanSourceGen</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="SourceGenSmoke.cs" />
+    <Compile Include="Support\**\*.cs" />
+    <ProjectReference Include="..\src\NetWork.Concept.SourceGen\NetWork.Concept.SourceGen.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

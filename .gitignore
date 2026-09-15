@@ -1,0 +1,11 @@
+.build/
+.dotnet/
+NetWork.slnx
+restore.log
+
+*.user
+*.userosscache
+*.suo
+.dotnet-home
+agency-agents-temp
+Build

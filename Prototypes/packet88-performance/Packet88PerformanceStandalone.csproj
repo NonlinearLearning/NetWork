@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>NetWork.Prototype.Packet88Performance</AssemblyName>
+    <RootNamespace>Terraria.NetWork.Prototype.Packet88Performance</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="GeneratedCodecInternals.cs" />
+    <Compile Include="ItemTweakerPacket88FrozenCodec.cs" />
+    <Compile Include="ItemTweakerPacket88PerformanceComparison.cs" />
+    <Compile Include="src\**\*.cs" />
+    <PackageReference Include="QuikGraph" Version="2.5.0" />
+  </ItemGroup>
+
+</Project>
