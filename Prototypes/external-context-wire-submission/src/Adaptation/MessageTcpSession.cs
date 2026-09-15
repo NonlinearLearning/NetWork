@@ -1,4 +1,4 @@
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using NetCoreServer;
 using Terraria.NetWork.Core.Messages;
 using Terraria.NetWork.Core.Protocol;

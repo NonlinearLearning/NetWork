@@ -1,4 +1,4 @@
-using Terraria.NetWork.Core.Protocol;
+﻿using Terraria.NetWork.Core.Protocol;
 using Terraria.NetWork.Core.Adaptation;
 
 namespace Terraria.NetWork.Verification.ProtocolDemoStandalone;
